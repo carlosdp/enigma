@@ -11,6 +11,11 @@ To store a secret environment variable:
 $ enigma save env personal_github GITHUB_TOKEN 6eyiehhe7h8eh9h87eg8egg8ge
 ```
 
+or, if the variable is in the environment, you can omit the value:
+```shell
+$ enigma save env personal_github GITHUB_TOKEN
+```
+
 You can then load it into the environment:
 ```shell
 $ enigma export personal_github
@@ -28,8 +33,12 @@ $ enigma export cradle_kubeconfig ~/.kube/
 
 ## TODO
 
-- [ ] Parse JSON from items output of `op`
-- [ ] Filter items by some tag or category for enigma
-- [ ] Store environment variable
-  - [ ] Store environment variable from environment
-- [ ] Store file(s)
+- [x] Parse JSON from items output of `op`
+- [x] Filter items by some tag or category for enigma
+- [x] Store environment variable
+  - [x] Store environment variable from environment
+- [x] Store file(s)
+- [ ] Move to local daemon model
+- [ ] Create server
+- [ ] Add lease approvals to client/server
+- [ ] Add secret rotation to server
