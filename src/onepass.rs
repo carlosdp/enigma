@@ -119,6 +119,7 @@ impl OnePassClient {
             let mut file = file.map_err(|e| format!("could not open file: {}", e))?;
             let mut file_path = path.clone();
             file_path.push(file.header().path().unwrap());
+            file_path.parent().map(|p| std::fs::create_dir_all(p));
             file.unpack(file_path)
                 .map_err(|e| format!("could not unpack file: {}", e))?;
         }
@@ -189,7 +190,14 @@ impl OnePassClient {
         archive_path.push(format!("{:?}", epoch));
 
         {
-            let prefix = get_root_dir(&paths).unwrap_or(PathBuf::new());
+            let prefix = get_root_dir(&paths).unwrap_or(
+                paths
+                    .get(0)
+                    .unwrap()
+                    .parent()
+                    .map(|p| p.to_path_buf())
+                    .unwrap_or(PathBuf::new()),
+            );
             let files: Vec<(PathBuf, File)> = paths
                 .into_iter()
                 .map(|p| {
