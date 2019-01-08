@@ -79,6 +79,10 @@ impl OnePassClient {
         Ok(())
     }
 
+    pub fn delete_variable(&self, name: &str) -> Result<(), String> {
+        self.delete_item(name)
+    }
+
     fn create_item(&self, name: &str, item: &OnePassLogin) -> Result<(), String> {
         use base64::encode;
 

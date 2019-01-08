@@ -20,6 +20,12 @@ enum Opt {
         #[structopt(subcommand)]
         subcommand: GetSubcommand,
     },
+    /// Delete a secret
+    #[structopt(name = "delete")]
+    Delete {
+        #[structopt(subcommand)]
+        subcommand: DeleteSubcommand,
+    },
 }
 
 #[derive(StructOpt, Debug)]
@@ -71,6 +77,23 @@ enum GetSubcommand {
     },
 }
 
+#[derive(StructOpt, Debug)]
+#[structopt()]
+enum DeleteSubcommand {
+    #[structopt(name = "env")]
+    /// Delete an environment variable secret
+    Env {
+        /// The name of the secret
+        name: String,
+    },
+    #[structopt(name = "file")]
+    /// Delete a secret file
+    File {
+        /// The name of the secret
+        name: String,
+    },
+}
+
 fn main() {
     let opt = Opt::from_args();
 
@@ -113,6 +136,16 @@ fn main() {
                         println!("{}{}={}", export_command, variable, value);
                     }
                     None => eprintln!("Secret '{}' not found", &name),
+                }
+            }
+            _ => unimplemented!(),
+        },
+        Opt::Delete { subcommand } => match subcommand {
+            DeleteSubcommand::Env { name } => {
+                let client = OnePassClient::new(None).unwrap();
+                match client.delete_variable(&name) {
+                    Ok(_) => println!("'{}' deleted", name),
+                    Err(e) => eprintln!("could not delete '{}': {}", name, e),
                 }
             }
             _ => unimplemented!(),
