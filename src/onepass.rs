@@ -78,7 +78,7 @@ impl OnePassClient {
         use base64::encode;
 
         let vault = format!("--vault={}", &self.vault);
-        let title = format!("--title=\"{}\"", name);
+        let title = format!("--title={}", name);
         let encoded = encode(&to_vec(&item).unwrap());
 
         self.command(&["create", "item", "Login", &encoded, &title, &vault])?;
