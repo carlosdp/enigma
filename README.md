@@ -49,6 +49,7 @@ at your option.
 - [x] Store environment variable
   - [x] Store environment variable from environment
 - [x] Store file(s)
+- [ ] Make actual error types
 - [ ] Move to local daemon model
 - [ ] Create server
 - [ ] Add lease approvals to client/server
