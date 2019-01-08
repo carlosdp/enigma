@@ -18,7 +18,7 @@ $ enigma save env personal_github GITHUB_TOKEN
 
 You can then load it into the environment:
 ```shell
-$ enigma export personal_github
+$ eval $(enigma get --export personal_github)
 ```
 
 To store a secret file(s):
@@ -28,7 +28,7 @@ $ enigma save file cradle_kubeconfig ~/.kube/*.yml
 
 You can then load the files, with any original folder structure preserved:
 ```shell
-$ enigma export cradle_kubeconfig ~/.kube/
+$ enigma get cradle_kubeconfig ~/.kube/
 ```
 
 # License
