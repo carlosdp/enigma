@@ -1,9 +1,9 @@
 mod onepass;
 
-use std::path::PathBuf;
-use std::env;
-use structopt::StructOpt;
 use crate::onepass::OnePassClient;
+use std::env;
+use std::path::PathBuf;
+use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "enigma")]
@@ -75,51 +75,47 @@ fn main() {
     let opt = Opt::from_args();
 
     match opt {
-        Opt::Save { subcommand } => {
-            match subcommand {
-                SaveSubcommand::Env { name, variable, secret } => {
-                    let value = if let Some(value) = secret {
-                        value
-                    } else {
-                        match env::var(&variable) {
-                            Ok(value) => value,
-                            Err(e) => {
-                                eprintln!("could not find {} in current environment: {}", &variable, e);
-                                return;
-                            },
+        Opt::Save { subcommand } => match subcommand {
+            SaveSubcommand::Env {
+                name,
+                variable,
+                secret,
+            } => {
+                let value = if let Some(value) = secret {
+                    value
+                } else {
+                    match env::var(&variable) {
+                        Ok(value) => value,
+                        Err(e) => {
+                            eprintln!("could not find {} in current environment: {}", &variable, e);
+                            return;
                         }
-                    };
+                    }
+                };
 
-                    let client = OnePassClient::new(None).unwrap();
-                    match client.set_variable(&name, &variable, &value) {
-                        Ok(_) => println!("saved {} to {}", name, variable),
-                        Err(err) => eprintln!("could not save: {}", err),
-                    };
-                },
-                SaveSubcommand::File { name, paths } => {
-                    println!("will save {} at {:?}", name, paths);
-                },
+                let client = OnePassClient::new(None).unwrap();
+                match client.set_variable(&name, &variable, &value) {
+                    Ok(_) => println!("saved {} to {}", name, variable),
+                    Err(err) => eprintln!("could not save: {}", err),
+                };
+            }
+            SaveSubcommand::File { name, paths } => {
+                println!("will save {} at {:?}", name, paths);
             }
         },
-        Opt::Get { subcommand } => {
-            match subcommand {
-                GetSubcommand::Env { name, export } => {
-                    let client = OnePassClient::new(None).unwrap();
-                    match client.get_variable(&name) {
-                        Some((variable, value)) => {
-                            let export_command = if export {
-                                "export "
-                            } else {
-                                ""
-                            };
+        Opt::Get { subcommand } => match subcommand {
+            GetSubcommand::Env { name, export } => {
+                let client = OnePassClient::new(None).unwrap();
+                match client.get_variable(&name) {
+                    Some((variable, value)) => {
+                        let export_command = if export { "export " } else { "" };
 
-                            println!("{}{}={}", export_command, variable, value);
-                        },
-                        None => eprintln!("Secret '{}' not found", &name),
+                        println!("{}{}={}", export_command, variable, value);
                     }
-                },
-                _ => unimplemented!(),
+                    None => eprintln!("Secret '{}' not found", &name),
+                }
             }
+            _ => unimplemented!(),
         },
     };
 }

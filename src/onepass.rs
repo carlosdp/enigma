@@ -1,7 +1,7 @@
-use std::process::{Command, Stdio};
 use regex::Regex;
-use serde_derive::{Serialize, Deserialize};
-use serde_json::{Value, from_str, from_value, to_vec};
+use serde_derive::{Deserialize, Serialize};
+use serde_json::{from_str, from_value, to_vec, Value};
+use std::process::{Command, Stdio};
 
 pub struct OnePassClient {
     token: (String, String),
@@ -12,7 +12,12 @@ impl OnePassClient {
     pub fn new(vault: Option<&str>) -> Result<OnePassClient, String> {
         // todo: add separate error for when user account doesn't exist
         let re = Regex::new("export ([\\w_]+)=\"(.*)\"").unwrap();
-        let child = Command::new("op").args(&["signin"]).stdin(Stdio::inherit()).stdout(Stdio::piped()).spawn().expect("failed to execute 'op signin'");
+        let child = Command::new("op")
+            .args(&["signin"])
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("failed to execute 'op signin'");
 
         let output = child.wait_with_output().expect("failed to get output");
 
@@ -51,7 +56,7 @@ impl OnePassClient {
                 } else {
                     None
                 }
-            },
+            }
             None => None,
         }
     }
@@ -90,7 +95,10 @@ impl OnePassClient {
         let vault = format!("--vault={}", &self.vault);
         let output = self.command(&["list", "items", &vault]).unwrap();
         let raw_items: Vec<Value> = from_str(&output).expect("could not parse items");
-        raw_items.into_iter().filter_map(|i| from_value(i).ok()).collect()
+        raw_items
+            .into_iter()
+            .filter_map(|i| from_value(i).ok())
+            .collect()
     }
 
     pub fn get_item(&self, name: &str) -> Option<OnePassDetailItem> {
@@ -111,12 +119,20 @@ impl OnePassClient {
     }
 
     fn command(&self, args: &[&str]) -> Result<String, String> {
-        let output = Command::new("op").env(&self.token.0, &self.token.1).args(args).output().map_err(|_| "failed to execute 'op'".to_owned())?;
+        let output = Command::new("op")
+            .env(&self.token.0, &self.token.1)
+            .args(args)
+            .output()
+            .map_err(|_| "failed to execute 'op'".to_owned())?;
 
         if output.status.success() {
-            Ok(String::from_utf8(output.stdout).map_err(|_| "failed to parse stdout".to_owned())?)
+            Ok(
+                String::from_utf8(output.stdout)
+                    .map_err(|_| "failed to parse stdout".to_owned())?,
+            )
         } else {
-            Err(String::from_utf8(output.stderr).map_err(|_| "failed to parse stderr".to_owned())?)
+            Err(String::from_utf8(output.stderr)
+                .map_err(|_| "failed to parse stderr".to_owned())?)
         }
     }
 }
