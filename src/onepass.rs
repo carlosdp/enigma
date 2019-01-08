@@ -1,7 +1,11 @@
+use crate::utils::get_root_dir;
 use regex::Regex;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::{from_str, from_value, to_vec, Value};
+use std::fs::File;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use tar::Builder;
 
 pub struct OnePassClient {
     token: (String, String),
@@ -66,7 +70,7 @@ impl OnePassClient {
 
         let new_item = OnePassLogin::for_variable(variable, value);
 
-        if let Some(item) = self.get_item(name) {
+        if let Some(item) = self.get_min_item(name) {
             old_uuid = Some(item.uuid);
         }
 
@@ -83,6 +87,22 @@ impl OnePassClient {
         self.delete_item(name)
     }
 
+    pub fn set_file(&self, name: &str, paths: Vec<PathBuf>) -> Result<(), String> {
+        let mut old_uuid = None;
+
+        if let Some(item) = self.get_min_item(name) {
+            old_uuid = Some(item.uuid);
+        }
+
+        self.create_document(name, paths)?;
+
+        if let Some(uuid) = old_uuid {
+            self.delete_item(&uuid).expect("could not delete old item");
+        }
+
+        Ok(())
+    }
+
     fn create_item(&self, name: &str, item: &OnePassLogin) -> Result<(), String> {
         use base64::encode;
 
@@ -95,7 +115,7 @@ impl OnePassClient {
         Ok(())
     }
 
-    pub fn list_items(&self) -> Vec<OnePassItem> {
+    fn list_items(&self) -> Vec<OnePassItem> {
         let vault = format!("--vault={}", &self.vault);
         let output = self.command(&["list", "items", &vault]).unwrap();
         let raw_items: Vec<Value> = from_str(&output).expect("could not parse items");
@@ -105,7 +125,18 @@ impl OnePassClient {
             .collect()
     }
 
-    pub fn get_item(&self, name: &str) -> Option<OnePassDetailItem> {
+    fn get_item(&self, name: &str) -> Option<OnePassDetailItem> {
+        let vault = format!("--vault={}", &self.vault);
+        let output = self.command(&["get", "item", name, &vault]);
+
+        if let Ok(o) = output {
+            from_str(&o).ok()
+        } else {
+            None
+        }
+    }
+
+    fn get_min_item(&self, name: &str) -> Option<OnePassItem> {
         let vault = format!("--vault={}", &self.vault);
         let output = self.command(&["get", "item", name, &vault]);
 
@@ -120,6 +151,54 @@ impl OnePassClient {
         let vault = format!("--vault={}", &self.vault);
         self.command(&["delete", "item", name, &vault])?;
         Ok(())
+    }
+
+    fn create_document(&self, name: &str, paths: Vec<PathBuf>) -> Result<(), String> {
+        use std::env::temp_dir;
+        use std::fs::remove_file;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let time = SystemTime::now();
+        let epoch = time
+            .duration_since(UNIX_EPOCH)
+            .expect("time went backwards");
+        let mut archive_path = temp_dir();
+        archive_path.push(format!("{:?}", epoch));
+
+        {
+            let prefix = get_root_dir(&paths).unwrap_or(PathBuf::new());
+            let files: Vec<(PathBuf, File)> = paths
+                .into_iter()
+                .map(|p| {
+                    let file = File::open(&p).unwrap();
+                    (p, file)
+                })
+                .collect();
+
+            let f = File::create(&archive_path).unwrap();
+            let mut archive = Builder::new(f);
+
+            for (path, mut file) in files {
+                archive
+                    .append_file(path.strip_prefix(&prefix).unwrap(), &mut file)
+                    .unwrap();
+            }
+        }
+
+        let title = format!("--title={}", &name);
+        let vault = format!("--vault={}", &self.vault);
+
+        let output = self.command(&[
+            "create",
+            "document",
+            &archive_path.to_string_lossy(),
+            &title,
+            &vault,
+        ]);
+
+        remove_file(&archive_path).expect("could not delete file");
+
+        output.map(|_| ())
     }
 
     fn command(&self, args: &[&str]) -> Result<String, String> {
@@ -183,25 +262,6 @@ pub struct OnePassLogin {
 }
 
 impl OnePassLogin {
-    pub fn for_login(username: &str, password: &str) -> OnePassLogin {
-        OnePassLogin {
-            fields: vec![
-                OnePassField {
-                    name: "username".to_string(),
-                    designation: "username".to_string(),
-                    ty: "T".to_string(),
-                    value: username.to_string(),
-                },
-                OnePassField {
-                    name: "password".to_string(),
-                    designation: "password".to_string(),
-                    ty: "P".to_string(),
-                    value: password.to_string(),
-                },
-            ],
-        }
-    }
-
     pub fn for_variable(variable: &str, value: &str) -> OnePassLogin {
         OnePassLogin {
             fields: vec![

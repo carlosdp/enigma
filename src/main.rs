@@ -1,4 +1,5 @@
 mod onepass;
+mod utils;
 
 use crate::onepass::OnePassClient;
 use std::env;
@@ -123,7 +124,11 @@ fn main() {
                 };
             }
             SaveSubcommand::File { name, paths } => {
-                println!("will save {} at {:?}", name, paths);
+                let client = OnePassClient::new(None).unwrap();
+                match client.set_file(&name, paths) {
+                    Ok(_) => println!("saved {}", name),
+                    Err(err) => eprintln!("could not save: {}", err),
+                };
             }
         },
         Opt::Get { subcommand } => match subcommand {
