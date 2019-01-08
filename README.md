@@ -1,4 +1,4 @@
-# enigma
+# enigma &emsp; [![Build Status](https://travis-ci.org/carlosdp/enigma.svg?branch=master)](https://travis-ci.org/carlosdp/enigma)
 enigma is a CLI tool that keeps my secrets. It is designed to be used locally and on remote machines to securely and easily distribute and install secrets.
 
 The following backends are currently supported:
