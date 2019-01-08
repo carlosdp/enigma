@@ -5,7 +5,7 @@ use serde_json::{from_str, from_value, to_vec, Value};
 use std::fs::File;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use tar::Builder;
+use tar::{Archive, Builder};
 
 pub struct OnePassClient {
     token: (String, String),
@@ -87,6 +87,10 @@ impl OnePassClient {
         self.delete_item(name)
     }
 
+    pub fn delete_file(&self, name: &str) -> Result<(), String> {
+        self.delete_item(name)
+    }
+
     pub fn set_file(&self, name: &str, paths: Vec<PathBuf>) -> Result<(), String> {
         let mut old_uuid = None;
 
@@ -98,6 +102,25 @@ impl OnePassClient {
 
         if let Some(uuid) = old_uuid {
             self.delete_item(&uuid).expect("could not delete old item");
+        }
+
+        Ok(())
+    }
+
+    pub fn extract_file(&self, name: &str, path: &PathBuf) -> Result<(), String> {
+        let raw_document = self.get_document(name)?;
+
+        let mut archive = Archive::new(&*raw_document);
+
+        for file in archive
+            .entries()
+            .map_err(|e| format!("could not open archive: {}", e))?
+        {
+            let mut file = file.map_err(|e| format!("could not open file: {}", e))?;
+            let mut file_path = path.clone();
+            file_path.push(file.header().path().unwrap());
+            file.unpack(file_path)
+                .map_err(|e| format!("could not unpack file: {}", e))?;
         }
 
         Ok(())
@@ -201,6 +224,17 @@ impl OnePassClient {
         output.map(|_| ())
     }
 
+    fn get_document(&self, name: &str) -> Result<Vec<u8>, String> {
+        let item = self.get_min_item(name);
+
+        if item.is_none() {
+            return Err("could not find document".to_string());
+        }
+
+        let vault = format!("--vault={}", &self.vault);
+        self.raw_command(&["get", "document", &item.unwrap().uuid, &vault])
+    }
+
     fn command(&self, args: &[&str]) -> Result<String, String> {
         let output = Command::new("op")
             .env(&self.token.0, &self.token.1)
@@ -213,6 +247,21 @@ impl OnePassClient {
                 String::from_utf8(output.stdout)
                     .map_err(|_| "failed to parse stdout".to_owned())?,
             )
+        } else {
+            Err(String::from_utf8(output.stderr)
+                .map_err(|_| "failed to parse stderr".to_owned())?)
+        }
+    }
+
+    fn raw_command(&self, args: &[&str]) -> Result<Vec<u8>, String> {
+        let output = Command::new("op")
+            .env(&self.token.0, &self.token.1)
+            .args(args)
+            .output()
+            .map_err(|_| "failed to execute 'op'".to_owned())?;
+
+        if output.status.success() {
+            Ok(output.stdout)
         } else {
             Err(String::from_utf8(output.stderr)
                 .map_err(|_| "failed to parse stderr".to_owned())?)

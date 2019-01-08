@@ -74,7 +74,7 @@ enum GetSubcommand {
         name: String,
         /// The path to extract the secret
         #[structopt(parse(from_os_str))]
-        paths: PathBuf,
+        path: PathBuf,
     },
 }
 
@@ -143,7 +143,13 @@ fn main() {
                     None => eprintln!("Secret '{}' not found", &name),
                 }
             }
-            _ => unimplemented!(),
+            GetSubcommand::File { name, path } => {
+                let client = OnePassClient::new(None).unwrap();
+                match client.extract_file(&name, &path) {
+                    Ok(_) => println!("extracted '{}' to {:?}", &name, &path),
+                    Err(e) => eprintln!("could not extract '{}': {}", &name, e),
+                }
+            }
         },
         Opt::Delete { subcommand } => match subcommand {
             DeleteSubcommand::Env { name } => {
@@ -153,7 +159,13 @@ fn main() {
                     Err(e) => eprintln!("could not delete '{}': {}", name, e),
                 }
             }
-            _ => unimplemented!(),
+            DeleteSubcommand::File { name } => {
+                let client = OnePassClient::new(None).unwrap();
+                match client.delete_file(&name) {
+                    Ok(_) => println!("'{}' deleted", name),
+                    Err(e) => eprintln!("could not delete '{}': {}", name, e),
+                }
+            }
         },
     };
 }
